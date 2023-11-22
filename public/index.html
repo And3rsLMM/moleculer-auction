@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Tela de Leilão</title>
+
+  <!-- Carregando a biblioteca OpenUI5 -->
+  <script id="sap-ui-bootstrap"
+          src="https://openui5.hana.ondemand.com/resources/sap-ui-core.js"
+          data-sap-ui-theme="sap_belize"
+          data-sap-ui-libs="sap.m"
+          data-sap-ui-async="true">
+  </script>
+
+  <!-- Configuração do aplicativo OpenUI5 -->
+  <script>
+    sap.ui.getCore().attachInit(function () {
+      // Criação de um modelo de dados para as informações do usuário e lances
+      var oModel = new sap.ui.model.json.JSONModel({
+        user: {
+          name: "John Doe",
+          id: "12345",
+          birthdate: "01/01/1990"
+        },
+        bidAmount: 100,
+        bids: [] // Array para armazenar os lances
+      });
+
+      // Conectar-se ao servidor Moleculer.js via WebSocket usando socket.io
+      const socket = io('http://localhost:3000'); // Substitua pela URL correta do seu servidor Moleculer.js
+
+      // Evento para receber mensagens do servidor
+      socket.on('bidConfirmation', function (message) {
+  console.log(message); // Mensagem de confirmação do servidor
+});
+
+socket.on('insertOnTable', function (data) {
+  updateTable(data); // Chame a função de atualização da tabela com os dados recebidos
+});
+
+// Função para atualizar a tabela
+function updateTable(data) {
+  console.log("updateTable",data)
+  var oData = oModel.getData(); // Obtenha os dados do modelo
+
+  // Adicione os novos dados à tabela (assumindo que 'data' seja um array de objetos)
+  oData.bids.push(oData.bids, data);
+
+  // Atualize o modelo com os novos dados
+  oModel.setData(oData);
+}
+
+      // Criação de controles OpenUI5
+      var oLabel = new sap.m.Label({
+        text: "Informações do Usuário"
+      });
+
+      var oInput = new sap.m.Input({
+        value: "{/user/name}",
+        placeholder: "Nome"
+      });
+
+      
+
+      var oLabel2 = new sap.m.Label({
+        text: "Valor de Lance"
+      });
+
+      var oInput2 = new sap.m.Input({
+        value: "{/bidAmount}",
+        placeholder: "Valor do Lance"
+      });
+
+      var oButton = new sap.m.Button({
+        text: "Registrar Lance",
+        press: function () {
+          var oData = oModel.getData();
+          console.log("Usuário: " + oData.user.name);
+          console.log("Lance: " + oData.bidAmount);
+
+          // Enviar o lance para o servidor via WebSocket
+          socket.emit('sendBid', { user: oData.user.name, bidAmount: oData.bidAmount });
+
+          // Adiciona o novo lance ao array de lances
+          oData.bids.push({
+            date: new Date().toLocaleString(),
+            user: oData.user.name,
+            bidAmount: oData.bidAmount
+          });
+
+          // Atualiza o modelo de dados
+          oModel.setData(oData);
+        }
+      });
+
+      // Criação de uma tabela para exibir os lances
+      var oTable = new sap.m.Table({
+        columns: [
+          new sap.m.Column({ header: new sap.m.Label({ text: "Data" }) }),
+          new sap.m.Column({ header: new sap.m.Label({ text: "Usuário" }) }),
+          new sap.m.Column({ header: new sap.m.Label({ text: "Lance" }) })
+        ]
+      });
+
+      // Vincula o modelo de dados à tabela
+      oTable.setModel(oModel);
+
+      var oTemplate = new sap.m.ColumnListItem({
+        cells: [
+          new sap.m.Text({ text: "{date}" }),
+          new sap.m.Text({ text: "{user}" }),
+          new sap.m.Text({ text: "{bidAmount}" })
+        ]
+      });
+
+      oTable.bindItems("/bids", oTemplate);
+
+      // Criação de um layout vertical com sap.m.VBox
+      var oVBox = new sap.m.VBox({
+        items: [oLabel, oInput, oLabel2, oInput2, oButton, oTable]
+      });
+
+      // Vincula o modelo de dados ao layout
+      oVBox.setModel(oModel);
+
+      // Coloca o layout na página
+      oVBox.placeAt("content");
+    });
+
+
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.3/socket.io.js"></script>
+
+  
+</head>
+<body class="sapUiBody" id="content"></body>
+</html>
